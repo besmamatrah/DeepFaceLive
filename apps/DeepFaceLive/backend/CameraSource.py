@@ -128,7 +128,20 @@ class CameraSourceWorker(BackendWorker):
                       _DriverType.GSTREAMER: cv2.CAP_GSTREAMER,
                       }[state.driver]
 
-            vcap = cv2.VideoCapture(state.device_idx, cv_api)
+            camera_device = state.device_idx
+            if platform.system() == 'Linux':
+                camera_device = f'/dev/video{state.device_idx}'
+                if state.driver == _DriverType.COMPATIBLE:
+                    cv_api = cv2.CAP_V4L2
+
+            vcap = cv2.VideoCapture(camera_device, cv_api)
+            print(
+                f"[DRAVEN CAMERA READ TRACE] OPEN device={camera_device} "
+                f"api={cv_api} opened={vcap.isOpened()}",
+                flush=True,
+            )
+            self._draven_read_attempts = 0
+            self._draven_read_successes = 0
             if vcap.isOpened():
                 self.vcap = vcap
                 w, h = _ResolutionType_wh[state.resolution]
@@ -235,7 +248,32 @@ class CameraSourceWorker(BackendWorker):
             state, cs = self.get_state(), self.get_control_sheet()
 
             self.start_profile_timing()
+            _draven_t0 = time.monotonic()
+            _draven_n = getattr(self, "_draven_read_attempts", 0) + 1
+            self._draven_read_attempts = _draven_n
+
+            if _draven_n == 1:
+                print(
+                    "[DRAVEN CAMERA READ TRACE] FIRST_READ_BEGIN",
+                    flush=True,
+                )
+
             ret, img = self.vcap.read()
+            _draven_elapsed = time.monotonic() - _draven_t0
+
+            if ret:
+                self._draven_read_successes = (
+                    getattr(self, "_draven_read_successes", 0) + 1
+                )
+
+            if _draven_n <= 3 or _draven_n % 300 == 0 or not ret:
+                print(
+                    f"[DRAVEN CAMERA READ TRACE] READ n={_draven_n} "
+                    f"ok={ret} successes={self._draven_read_successes} "
+                    f"elapsed={_draven_elapsed:.4f}s",
+                    flush=True,
+                )
+
             if ret:
                 timestamp = datetime.now().timestamp()
                 fps = state.fps

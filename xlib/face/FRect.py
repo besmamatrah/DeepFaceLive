@@ -1,5 +1,9 @@
+# Local modification (2026-10-28):
+# Replace collections.Iterable with collections.abc.Iterable
+# for compatibility with modern Python versions.
+
 import operator
-from collections import Iterable
+from collections.abc import Iterable
 from typing import List, Tuple
 
 import cv2

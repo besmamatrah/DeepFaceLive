@@ -1,3 +1,7 @@
+# Local modification (2026-10-29):
+# Convert calculated QRect coordinates and dimensions to integers
+# to satisfy PyQt6's QRect constructor.
+
 from typing import List, Union
 
 import numpy as np
@@ -67,10 +71,10 @@ class QXFixedLayeredImages(QXWidget):
 
             if ap > a:
                 ph_fit = h * (a / ap)
-                rect = QRect(0, h_half-ph_fit/2, w, ph_fit )
+                rect = QRect(0, int(round(h_half-ph_fit/2)), int(w), int(round(ph_fit)))
             elif ap < a:
                 pw_fit = w * (ap / a)
-                rect = QRect(w_half-pw_fit/2, 0, pw_fit, h )
+                rect = QRect(int(round(w_half-pw_fit/2)), 0, int(round(pw_fit)), int(h))
             else:
                 rect = self.rect()
 

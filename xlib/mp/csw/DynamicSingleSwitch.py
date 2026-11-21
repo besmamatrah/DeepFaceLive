@@ -1,4 +1,8 @@
-from collections import Iterable
+# Local modification (2026-10-28):
+# Replace collections.Iterable with collections.abc.Iterable
+# for compatibility with modern Python versions.
+
+from collections.abc import Iterable
 from typing import List, Union
 
 from ...python import EventListener

@@ -1,3 +1,7 @@
+# Local modification (2026-10-29):
+# Convert the calculated slider position to an integer before
+# passing it to QSlider.setValue().
+
 from xlib import qt as qtx
 from xlib.mp import csw as lib_csw
 
@@ -51,7 +55,7 @@ class QSliderCSWNumber(QCSWControl):
             config = self._config
             value = (value-config.min) / config.step
             with qtx.BlockSignals([self._slider]):
-                self._slider.setValue(value)
+                self._slider.setValue(int(round(value)))
 
     def _set_csw_value(self):
         config = self._config

@@ -1,3 +1,6 @@
+# Local modification (2026-10-29):
+# Replace the removed np.int alias with the built-in int type.
+
 import numpy as np
 from localization import L
 from resources.fonts import QXFontDB
@@ -100,7 +103,7 @@ class QFaceDetector(QBackendPanel):
                         info_str = f'{face_id}: '
 
                         if fsi.face_urect is not None:
-                            l,t,r,b = fsi.face_urect.as_ltrb_bbox(frame_image_w_h).astype(np.int)
+                            l,t,r,b = fsi.face_urect.as_ltrb_bbox(frame_image_w_h).astype(int)
                             info_str += f'[{l},{t},{r},{b}]'
 
                         info.append(info_str)

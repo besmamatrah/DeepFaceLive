@@ -12,6 +12,7 @@ from xlib.python import all_is_not_None
 from .BackendBase import (BackendConnection, BackendDB, BackendHost,
                           BackendSignal, BackendWeakHeap, BackendWorker,
                           BackendWorkerState)
+from . import patch_timestamp_logger as _dfl_instr
 
 
 class FaceSwapDFM(BackendHost):
@@ -291,6 +292,15 @@ class FaceSwapDFMWorker(BackendWorker):
             self.start_profile_timing()
 
             bcd = self.bc_in.read(timeout=0.005)
+            # === DFL_INSTRUMENT:BEGIN v1 ===
+            _dfl_event = _dfl_instr.InstrumentEvent(
+                frame_id=bcd.get_frame_num() if bcd is not None else None,
+                t_capture_ns=__import__('time').monotonic_ns(),
+            )
+            if bcd is None:
+                _dfl_event.frame_dropped = 1
+                _dfl_instr.emit_event(_dfl_event)
+            # === DFL_INSTRUMENT:END v1 ===
             if bcd is not None:
                 bcd.assign_weak_heap(self.weak_heap)
 
@@ -298,6 +308,13 @@ class FaceSwapDFMWorker(BackendWorker):
                 dfm_model = self.dfm_model
                 if all_is_not_None(dfm_model, model_state):
 
+                    # === DFL_INSTRUMENT:BEGIN v1 ===
+                    _dfl_instr.ensure_logger_from_env(
+                        model_name=dfm_model.get_model_path().name,
+                        resolution='%dx%d' % dfm_model.get_input_res(),
+                        two_pass_enabled=bool(model_state.two_pass),
+                    )
+                    # === DFL_INSTRUMENT:END v1 ===
                     for i, fsi in enumerate(bcd.get_face_swap_info_list()):
                         if not model_state.swap_all_faces and model_state.face_id != i:
                             continue
@@ -320,12 +337,29 @@ class FaceSwapDFMWorker(BackendWorker):
                                 fai_ip.gamma(pre_gamma_red, pre_gamma_green, pre_gamma_blue)
                             face_align_image = fai_ip.get_image('HWC')
 
+                            # === DFL_INSTRUMENT:BEGIN v1 ===
+                            _dfl_instr.mark_pass1_start(_dfl_event)
+                            # === DFL_INSTRUMENT:END v1 ===
                             celeb_face, celeb_face_mask_img, face_align_mask_img = dfm_model.convert(face_align_image, morph_factor=model_state.morph_factor)
+                            # === DFL_INSTRUMENT:BEGIN v1 ===
+                            _dfl_instr.mark_pass1_end(_dfl_event)
+                            # === DFL_INSTRUMENT:END v1 ===
                             celeb_face, celeb_face_mask_img, face_align_mask_img = celeb_face[0], celeb_face_mask_img[0], face_align_mask_img[0]
 
                             if model_state.two_pass:
+                                # === DFL_INSTRUMENT:BEGIN v1 ===
+                                _dfl_instr.mark_pass2_start(_dfl_event)
+                                # === DFL_INSTRUMENT:END v1 ===
                                 celeb_face, celeb_face_mask_img, _ = dfm_model.convert(celeb_face, morph_factor=model_state.morph_factor)
+                                # === DFL_INSTRUMENT:BEGIN v1 ===
+                                _dfl_instr.mark_pass2_end(_dfl_event)
+                                _dfl_instr.emit_event(_dfl_event)
+                                # === DFL_INSTRUMENT:END v1 ===
                                 celeb_face, celeb_face_mask_img = celeb_face[0], celeb_face_mask_img[0]
+                            # === DFL_INSTRUMENT:BEGIN v1 ===
+                            if not _dfl_event.second_pass_ran:
+                                _dfl_instr.emit_event(_dfl_event)
+                            # === DFL_INSTRUMENT:END v1 ===
 
                             if post_gamma_red != 1.0 or post_gamma_blue != 1.0 or post_gamma_green != 1.0:
                                 celeb_face = ImageProcessor(celeb_face).gamma(post_gamma_red, post_gamma_blue, post_gamma_green).get_image('HWC')

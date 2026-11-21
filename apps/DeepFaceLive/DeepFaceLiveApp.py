@@ -1,4 +1,7 @@
+# Modified by Draven research automation on 2026-11-04.
+# Integrates the external runtime controller into the DFL startup lifecycle.
 from pathlib import Path
+import sys
 from typing import List
 
 from localization import L, Localization
@@ -202,6 +205,14 @@ class QDFLAppWindow(qtx.QXWindow):
         q_live_swap = self.q_live_swap = QLiveSwap(userdata_path=self._userdata_path, settings_dirpath=self._settings_dirpath)
         q_live_swap.initialize()
         self.content_l.addWidget(q_live_swap)
+
+        # Attach the Draven runtime controller to the initialized DFL app.
+        draven_experiment_root = Path(__file__).resolve().parents[3] / "experiment"
+        if str(draven_experiment_root) not in sys.path:
+            sys.path.insert(0, str(draven_experiment_root))
+
+        from automation.patch_start_dfl import inspect_live_dfl
+        inspect_live_dfl(self)
 
     def _on_reset_modules_settings(self):
         if self.q_live_swap is not None:
