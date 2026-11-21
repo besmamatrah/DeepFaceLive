@@ -9,6 +9,7 @@ from xlib.image import ImageProcessor
 from xlib.image import color_transfer as lib_ct
 from xlib.mp import csw as lib_csw
 from xlib.python import all_is_not_None
+from .draven_dfl_diagnostics import emit as _draven_diag
 
 from .BackendBase import (BackendConnection, BackendDB, BackendHost,
                           BackendSignal, BackendWeakHeap, BackendWorker,
@@ -343,6 +344,7 @@ class FaceMergerWorker(BackendWorker):
                             face_swap_mask_img        = bcd.get_image(fsi.face_swap_mask_name)
 
                             if all_is_not_None(face_resolution, face_align_img, face_align_mask_img, face_swap_img, face_swap_mask_img, image_to_align_uni_mat):
+                                _draven_diag('merger_inputs_ready', frame_id=bcd.get_frame_num(), face_index=fsi_id, align_image=True, align_mask=True, swap_image=True, swap_mask=True, transform=True)
                                 has_merged_faces = True
                                 face_height, face_width = face_align_img.shape[:2]
                                 frame_height, frame_width = merged_frame.shape[:2]
@@ -362,6 +364,7 @@ class FaceMergerWorker(BackendWorker):
                         merged_image_name = f'{frame_image_name}_merged'
                         bcd.set_merged_image_name(merged_image_name)
                         bcd.set_image(merged_image_name, merged_frame)
+                        _draven_diag('merger_output_written', frame_id=bcd.get_frame_num(), merged_shape=getattr(merged_frame, 'shape', None), merged_image_name=merged_image_name)
 
                 self.stop_profile_timing()
                 self.pending_bcd = bcd

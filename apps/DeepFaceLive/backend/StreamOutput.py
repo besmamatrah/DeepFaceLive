@@ -10,6 +10,7 @@ from xlib import os as lib_os
 from xlib import time as lib_time
 from xlib.image import ImageProcessor
 from xlib.mp import csw as lib_csw
+from .draven_dfl_diagnostics import emit as _draven_diag
 from xlib.streamer import FFMPEGStreamer
 
 from .BackendBase import (BackendConnection, BackendDB, BackendHost,
@@ -251,8 +252,10 @@ class StreamOutputWorker(BackendWorker):
                     view_image = bcd.get_image(bcd.get_frame_image_name())
                 elif source_type in [SourceType.MERGED_FRAME, SourceType.MERGED_FRAME_OR_SOURCE_FRAME]:
                     view_image = bcd.get_image(bcd.get_merged_image_name())
+                    _draven_merged_available = view_image is not None
                     if view_image is None and source_type == SourceType.MERGED_FRAME_OR_SOURCE_FRAME:
                         view_image = bcd.get_image(bcd.get_frame_image_name())
+                    _draven_diag('stream_output_choice', frame_id=frame_num, source_type=int(source_type), merged_available=_draven_merged_available, selected=('merged' if _draven_merged_available else 'source_fallback' if view_image is not None else 'no_frame'))
 
                 elif source_type == SourceType.ALIGNED_FACE:
                     aligned_face_id = state.aligned_face_id

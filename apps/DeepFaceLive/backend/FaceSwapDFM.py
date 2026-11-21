@@ -13,6 +13,7 @@ from .BackendBase import (BackendConnection, BackendDB, BackendHost,
                           BackendSignal, BackendWeakHeap, BackendWorker,
                           BackendWorkerState)
 from . import patch_timestamp_logger as _dfl_instr
+from .draven_dfl_diagnostics import emit as _draven_diag
 
 
 class FaceSwapDFM(BackendHost):
@@ -224,6 +225,7 @@ class FaceSwapDFMWorker(BackendWorker):
 
             elif events.new_status_initialized:
                 self.dfm_model = events.dfm_model
+                _draven_diag('dfm_model_initialized', model_path=str(self.dfm_model.get_model_path()), model_name=self.dfm_model.get_model_path().name)
                 self.dfm_model_initializer = None
 
                 model_width, model_height = self.dfm_model.get_input_res()
@@ -320,6 +322,7 @@ class FaceSwapDFMWorker(BackendWorker):
                             continue
 
                         face_align_image = bcd.get_image(fsi.face_align_image_name)
+                        _draven_diag('dfm_face_candidate', frame_id=bcd.get_frame_num(), face_index=i, selected_face_id=getattr(model_state, 'face_id', None), swap_all_faces=bool(model_state.swap_all_faces), aligned_face_available=face_align_image is not None)
                         if face_align_image is not None:
 
                             pre_gamma_red = model_state.pre_gamma_red
@@ -341,6 +344,7 @@ class FaceSwapDFMWorker(BackendWorker):
                             _dfl_instr.mark_pass1_start(_dfl_event)
                             # === DFL_INSTRUMENT:END v1 ===
                             celeb_face, celeb_face_mask_img, face_align_mask_img = dfm_model.convert(face_align_image, morph_factor=model_state.morph_factor)
+                            _draven_diag('dfm_convert_returned', frame_id=bcd.get_frame_num(), face_index=i, face_shape=getattr(celeb_face, 'shape', None), swap_mask_shape=getattr(celeb_face_mask_img, 'shape', None), align_mask_shape=getattr(face_align_mask_img, 'shape', None))
                             # === DFL_INSTRUMENT:BEGIN v1 ===
                             _dfl_instr.mark_pass1_end(_dfl_event)
                             # === DFL_INSTRUMENT:END v1 ===
@@ -371,6 +375,7 @@ class FaceSwapDFMWorker(BackendWorker):
                             bcd.set_image(fsi.face_align_mask_name, face_align_mask_img)
                             bcd.set_image(fsi.face_swap_image_name, celeb_face)
                             bcd.set_image(fsi.face_swap_mask_name, celeb_face_mask_img)
+                            _draven_diag('dfm_swap_written', frame_id=bcd.get_frame_num(), face_index=i, swap_image_name=fsi.face_swap_image_name, swap_mask_name=fsi.face_swap_mask_name)
 
                 self.stop_profile_timing()
                 self.pending_bcd = bcd
