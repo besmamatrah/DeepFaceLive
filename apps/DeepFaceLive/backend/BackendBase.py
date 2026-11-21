@@ -153,6 +153,10 @@ class BackendConnection:
 
     def get_write_id(self) -> int:
         return self._rd.get_write_id()
+    # DRAVEN_PUBLIC_READ_ID_V1
+    def get_read_id(self) -> int:
+        return self._rd.get_read_id()
+
 
     def get_by_id(self, id) -> Union[BackendConnectionData, None]:
         b = self._rd.get_by_id(id)

@@ -55,6 +55,17 @@ class QLiveSwap(qtx.QXWidget):
         face_swapper_bc_out   = backend.BackendConnection()
         frame_adjuster_bc_out = backend.BackendConnection()
         face_merger_bc_out    = backend.BackendConnection()
+        # DRAVEN_PIPELINE_CONNECTIONS_V1
+        # References to the actual connections created by this QLiveSwap.
+        self.draven_connections = {
+            "source": multi_sources_bc_out,
+            "detector": face_detector_bc_out,
+            "marker": face_marker_bc_out,
+            "aligner": face_aligner_bc_out,
+            "swapper": face_swapper_bc_out,
+            "adjuster": frame_adjuster_bc_out,
+            "merger": face_merger_bc_out,
+        }
 
         file_source    = self.file_source    = backend.FileSource   (weak_heap=backend_weak_heap, reemit_frame_signal=reemit_frame_signal, bc_out=multi_sources_bc_out, backend_db=backend_db)
         camera_source  = self.camera_source  = backend.CameraSource (weak_heap=backend_weak_heap, bc_out=multi_sources_bc_out, backend_db=backend_db)
