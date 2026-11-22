@@ -18,6 +18,27 @@ from .BackendBase import (BackendConnection, BackendDB, BackendHost,
                           BackendWorkerState)
 
 
+def _draven_pixel_trace(stage, frame_id, image):
+    try:
+        arr = np.asarray(image)
+        if arr.size == 0:
+            print(f"[DRAVEN PIXEL TRACE] {stage} frame={frame_id} EMPTY", flush=True)
+            return
+        print(
+            f"[DRAVEN PIXEL TRACE] {stage} frame={frame_id} "
+            f"shape={arr.shape} dtype={arr.dtype} "
+            f"min={np.min(arr)} max={np.max(arr)} "
+            f"mean={np.mean(arr):.3f} std={np.std(arr):.3f}",
+            flush=True,
+        )
+    except Exception as exc:
+        print(
+            f"[DRAVEN PIXEL TRACE] {stage} frame={frame_id} "
+            f"stats_error={exc!r}",
+            flush=True,
+        )
+
+
 class StreamOutput(BackendHost):
     """
     Bufferizes and shows the stream in separated window.
@@ -101,7 +122,9 @@ class StreamOutputWorker(BackendWorker):
 
         cs.target_delay.enable()
         cs.target_delay.set_config(lib_csw.Number.Config(min=0, max=5000, step=100, decimals=0, allow_instant_update=True))
-        cs.target_delay.set_number(state.target_delay if state.target_delay is not None else 500)
+        target_delay = state.target_delay if state.target_delay is not None else 500
+        cs.target_delay.set_number(target_delay)
+        self.buffered_frames.set_target_delay(target_delay / 1000.0)
 
         cs.avg_fps.enable()
         cs.avg_fps.set_config(lib_csw.Number.Config(min=0, max=240, decimals=1, read_only=True))
@@ -302,7 +325,9 @@ class StreamOutputWorker(BackendWorker):
 
 
                 if view_image is not None:
-                    buffered_frames.add_buffer( bcd.get_frame_timestamp(), view_image )
+                    buffered_frames.add_buffer(
+                        bcd.get_frame_timestamp(), (frame_num, view_image)
+                    )
 
                     if state.sequence_path is not None:
                         img = ImageProcessor(view_image, copy=True).to_uint8().get_image('HWC')
@@ -317,10 +342,16 @@ class StreamOutputWorker(BackendWorker):
 
                 pr = buffered_frames.process()
 
-                img = pr.new_data
-                if img is not None:
+                delayed_frame = pr.new_data
+                if delayed_frame is not None:
+                    delayed_frame_num, delayed_image = delayed_frame
+                    img = ImageProcessor(delayed_image).to_uint8().get_image('HWC')
+
                     if state.is_streaming:
-                        img = ImageProcessor(view_image).to_uint8().get_image('HWC')
+                        if delayed_frame_num <= 3 or delayed_frame_num % 300 == 0:
+                            _draven_pixel_trace(
+                                "stream_output", delayed_frame_num, img
+                            )
                         self._streamer.push_frame(img)
 
                     if state.is_showing_window:

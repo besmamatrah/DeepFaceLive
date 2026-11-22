@@ -224,7 +224,47 @@ class FaceSwapDFMWorker(BackendWorker):
                 cs.model_dl_progress.set_progress(0)
 
             elif events.new_status_initialized:
-                self.dfm_model = events.dfm_model
+                candidate_model = events.dfm_model
+                model_state = state.model_state
+                warmup_width, warmup_height = candidate_model.get_input_res()
+                warmup_image = np.zeros(
+                    (warmup_height, warmup_width, 3), dtype=np.uint8
+                )
+                warmup_morph = (
+                    model_state.morph_factor
+                    if model_state.morph_factor is not None else 0.75
+                )
+                warmup_two_pass = bool(model_state.two_pass)
+
+                try:
+                    warmup_result = candidate_model.convert(
+                        warmup_image, morph_factor=warmup_morph
+                    )
+                    if warmup_two_pass:
+                        candidate_model.convert(
+                            warmup_result[0][0], morph_factor=warmup_morph
+                        )
+                    _draven_diag(
+                        'dfm_model_warmup_complete',
+                        model_name=candidate_model.get_model_path().name,
+                        two_pass=warmup_two_pass,
+                        morph_factor=warmup_morph,
+                    )
+                except Exception as exc:
+                    self.dfm_model_initializer = None
+                    self.set_busy(False)
+                    cs.model_dl_error.enable()
+                    cs.model_dl_error.set_error(
+                        f"DFM model warm-up failed: {exc}"
+                    )
+                    _draven_diag(
+                        'dfm_model_warmup_failed',
+                        error=repr(exc),
+                        model_name=candidate_model.get_model_path().name,
+                    )
+                    return
+
+                self.dfm_model = candidate_model
                 _draven_diag('dfm_model_initialized', model_path=str(self.dfm_model.get_model_path()), model_name=self.dfm_model.get_model_path().name)
                 self.dfm_model_initializer = None
 

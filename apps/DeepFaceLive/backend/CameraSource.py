@@ -15,6 +15,27 @@ from .BackendBase import (BackendConnection, BackendConnectionData, BackendDB,
                           BackendWorkerState)
 
 
+def _draven_pixel_trace(stage, frame_id, image):
+    try:
+        arr = np.asarray(image)
+        if arr.size == 0:
+            print(f"[DRAVEN PIXEL TRACE] {stage} frame={frame_id} EMPTY", flush=True)
+            return
+        print(
+            f"[DRAVEN PIXEL TRACE] {stage} frame={frame_id} "
+            f"shape={arr.shape} dtype={arr.dtype} "
+            f"min={np.min(arr)} max={np.max(arr)} "
+            f"mean={np.mean(arr):.3f} std={np.std(arr):.3f}",
+            flush=True,
+        )
+    except Exception as exc:
+        print(
+            f"[DRAVEN PIXEL TRACE] {stage} frame={frame_id} "
+            f"stats_error={exc!r}",
+            flush=True,
+        )
+
+
 class CameraSource(BackendHost):
     def __init__(self, weak_heap :  BackendWeakHeap, bc_out : BackendConnection, backend_db : BackendDB = None):
         super().__init__(backend_db=backend_db,
@@ -265,6 +286,8 @@ class CameraSourceWorker(BackendWorker):
                 self._draven_read_successes = (
                     getattr(self, "_draven_read_successes", 0) + 1
                 )
+                if _draven_n <= 3 or _draven_n % 300 == 0:
+                    _draven_pixel_trace("camera_raw", _draven_n, img)
 
             if _draven_n <= 3 or _draven_n % 300 == 0 or not ret:
                 print(
@@ -303,6 +326,10 @@ class CameraSourceWorker(BackendWorker):
                         ip.flip_horizontal()
 
                     img = ip.get_image('HWC')
+                    if _draven_n <= 3 or _draven_n % 300 == 0:
+                        _draven_pixel_trace(
+                            "camera_prepared", self.bcd_uid + 1, img
+                        )
 
                     bcd_uid = self.bcd_uid = self.bcd_uid + 1
                     bcd = BackendConnectionData(uid=bcd_uid)
